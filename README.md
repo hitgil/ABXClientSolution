@@ -12,8 +12,8 @@ C++ client application for interacting with the ABX mock exchange server. The cl
 1. **Clone the repository**:
 
    ```bash
-   git clone <repository-url>
-   cd <repository-name>
+   git clone https://github.com/hitgil/ABXClientSolution.git
+   cd ABXClientSolution
 
 2. **Install dependencies**:
     ```bash
