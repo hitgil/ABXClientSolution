@@ -6,6 +6,10 @@
 #include <vector>
 #include <set>
 #include <algorithm>
+#include <fstream>
+#include <nlohmann/json.hpp>  
+
+using json = nlohmann::json;
 
 const uint8_t CALL_TYPE_STREAM_ALL_PACKETS = 1;
 const uint8_t CALL_TYPE_RESEND_PACKET = 2;
@@ -26,43 +30,51 @@ public:
 
 class PacketParser {
 public:
-    static void parseSinglePacket(const std::vector<uint8_t>& packet) {
+    struct PacketData {
+        std::string symbol;
+        char buySellIndicator;
+        int32_t quantity;
+        int32_t price;
+        int32_t packetSeq;
+    };
+
+    static PacketData parseSinglePacket(const std::vector<uint8_t>& packet) {
+        PacketData packetData;
+        
         if (packet.size() != 17) {
             std::cerr << "Invalid packet size." << std::endl;
-            return;
+            return packetData;  // Return an empty PacketData
         }
 
         // Parse Symbol (4 bytes)
         char symbol[5];
         std::memcpy(symbol, &packet[0], 4);
         symbol[4] = '\0';  // Null-terminate the string
+        packetData.symbol = symbol;
 
         // Parse Buy/Sell Indicator (1 byte)
-        char buySellIndicator = packet[4];
+        packetData.buySellIndicator = packet[4];
 
         // Parse Quantity (4 bytes, Big Endian to native)
         uint32_t quantityBigEndian;
         std::memcpy(&quantityBigEndian, &packet[5], 4);
-        int32_t quantity = PacketUtils::ntohl32(quantityBigEndian);
+        packetData.quantity = PacketUtils::ntohl32(quantityBigEndian);
 
         // Parse Price (4 bytes, Big Endian to native)
         uint32_t priceBigEndian;
         std::memcpy(&priceBigEndian, &packet[9], 4);
-        int32_t price = PacketUtils::ntohl32(priceBigEndian);
+        packetData.price = PacketUtils::ntohl32(priceBigEndian);
 
         // Parse Packet Sequence (4 bytes, Big Endian to native)
         uint32_t packetSeqBigEndian;
         std::memcpy(&packetSeqBigEndian, &packet[13], 4);
-        int32_t packetSeq = PacketUtils::ntohl32(packetSeqBigEndian);
+        packetData.packetSeq = PacketUtils::ntohl32(packetSeqBigEndian);
 
-        std::cout << "Symbol: " << symbol << "\n";
-        std::cout << "Buy/Sell: " << buySellIndicator << "\n";
-        std::cout << "Quantity: " << quantity << "\n";
-        std::cout << "Price: " << price << "\n";
-        std::cout << "Packet Sequence: " << packetSeq << "\n\n";
+        return packetData;
     }
 
-    static void parseResponse(const std::vector<uint8_t>& response, std::set<int>& receivedSeq, std::set<int>& missingSeq) {
+    static void parseResponse(const std::vector<uint8_t>& response, std::set<int>& receivedSeq, 
+                              std::set<int>& missingSeq, std::vector<PacketData>& packets) {
         size_t packetSize = 17;
         size_t numPackets = response.size() / packetSize;
 
@@ -76,15 +88,11 @@ public:
             std::vector<uint8_t> packet(response.begin() + i * packetSize, response.begin() + (i + 1) * packetSize);
 
             // Parse the single packet
-            parseSinglePacket(packet);
-
-            // Extract the packet sequence number from the parsed packet
-            uint32_t packetSeqBigEndian;
-            std::memcpy(&packetSeqBigEndian, &packet[13], 4);
-            int32_t packetSeq = PacketUtils::ntohl32(packetSeqBigEndian);
+            PacketData packetData = parseSinglePacket(packet);
+            packets.push_back(packetData);  // Store the packet data
 
             // Track received packet sequence
-            receivedSeq.insert(packetSeq);
+            receivedSeq.insert(packetData.packetSeq);
         }
 
         // Find missing sequences
@@ -95,6 +103,21 @@ public:
             }
         }
     }
+
+    static json createJson(const std::vector<PacketData>& packets) {
+        json jsonArray = json::array();
+        
+        for (const auto& packet : packets) {
+            json jsonObject;
+            jsonObject["symbol"] = packet.symbol;
+            jsonObject["buySellIndicator"] = packet.buySellIndicator;
+            jsonObject["quantity"] = packet.quantity;
+            jsonObject["price"] = packet.price;
+            jsonObject["packetSeq"] = packet.packetSeq;
+            jsonArray.push_back(jsonObject);
+        }
+        return jsonArray;
+    }
 };
 
 class ExchangeClient {
@@ -104,6 +127,7 @@ private:
     std::set<int> receivedSeq;
     std::set<int> missingSeq;
     std::vector<uint8_t> response;
+    std::vector<PacketParser::PacketData> packets;  // Store parsed packet data
 
 public:
     ExchangeClient(const std::string& serverIP, int port) {
@@ -161,7 +185,7 @@ public:
         response.resize(totalBytesReceived);
 
         // Parse initial response
-        PacketParser::parseResponse(response, receivedSeq, missingSeq);
+        PacketParser::parseResponse(response, receivedSeq, missingSeq, packets);
     }
 
     void requestMissingPackets() {
@@ -199,37 +223,38 @@ public:
 
             std::cout << "Received missing packet for sequence: " << seq << "\n";
 
-            // Append the missing packet response to the original response
-            response.insert(response.end(), missingPacketResponse.begin(), missingPacketResponse.end());
+            // Parse the missing packet and add to the packets vector
+            PacketParser::PacketData packetData = PacketParser::parseSinglePacket(missingPacketResponse);
+            packets.push_back(packetData);
 
             close(resendSock);  // Close connection after each request
         }
 
-        // Parse entire response after appending missing packets
-        PacketParser::parseResponse(response, receivedSeq, missingSeq);
+        // Create the JSON after adding missing packets
+        createJsonFile();
     }
 
-    void closeConnection() {
-        close(sock);
+    void createJsonFile() {
+        json jsonArray = PacketParser::createJson(packets);
+        std::ofstream outputFile("packets.json");
+        outputFile << jsonArray.dump(4);  // Pretty print with an indentation of 4 spaces
+        outputFile.close();
+        std::cout << "JSON file created: packets.json\n";
     }
 };
 
 int main() {
     try {
         ExchangeClient client("127.0.0.1", 3000);
-
         if (!client.connectToServer()) {
             return 1;
         }
-
         client.sendInitialRequest();
         client.receiveInitialData();
         client.requestMissingPackets();
-    }
-    catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << e.what() << std::endl;
         return 1;
     }
-
     return 0;
 }

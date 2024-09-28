@@ -1,0 +1,100 @@
+[
+    {
+        "buySellIndicator": 66,
+        "packetSeq": 1,
+        "price": 100,
+        "quantity": 50,
+        "symbol": "AAPL"
+    },
+    {
+        "buySellIndicator": 66,
+        "packetSeq": 2,
+        "price": 98,
+        "quantity": 30,
+        "symbol": "AAPL"
+    },
+    {
+        "buySellIndicator": 66,
+        "packetSeq": 5,
+        "price": 50,
+        "quantity": 40,
+        "symbol": "META"
+    },
+    {
+        "buySellIndicator": 83,
+        "packetSeq": 6,
+        "price": 55,
+        "quantity": 30,
+        "symbol": "META"
+    },
+    {
+        "buySellIndicator": 83,
+        "packetSeq": 7,
+        "price": 57,
+        "quantity": 20,
+        "symbol": "META"
+    },
+    {
+        "buySellIndicator": 66,
+        "packetSeq": 8,
+        "price": 150,
+        "quantity": 25,
+        "symbol": "MSFT"
+    },
+    {
+        "buySellIndicator": 83,
+        "packetSeq": 9,
+        "price": 155,
+        "quantity": 15,
+        "symbol": "MSFT"
+    },
+    {
+        "buySellIndicator": 66,
+        "packetSeq": 11,
+        "price": 3000,
+        "quantity": 10,
+        "symbol": "AMZN"
+    },
+    {
+        "buySellIndicator": 83,
+        "packetSeq": 13,
+        "price": 3020,
+        "quantity": 15,
+        "symbol": "AMZN"
+    },
+    {
+        "buySellIndicator": 83,
+        "packetSeq": 14,
+        "price": 3015,
+        "quantity": 10,
+        "symbol": "AMZN"
+    },
+    {
+        "buySellIndicator": 83,
+        "packetSeq": 3,
+        "price": 101,
+        "quantity": 20,
+        "symbol": "AAPL"
+    },
+    {
+        "buySellIndicator": 83,
+        "packetSeq": 4,
+        "price": 102,
+        "quantity": 10,
+        "symbol": "AAPL"
+    },
+    {
+        "buySellIndicator": 66,
+        "packetSeq": 10,
+        "price": 148,
+        "quantity": 20,
+        "symbol": "MSFT"
+    },
+    {
+        "buySellIndicator": 66,
+        "packetSeq": 12,
+        "price": 2999,
+        "quantity": 5,
+        "symbol": "AMZN"
+    }
+]
